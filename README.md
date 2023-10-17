@@ -16,3 +16,6 @@ https://www.indigo-astronomy.org/index.html) does not let me use negative number
 Even more sadly, Tinygo does not implement true concurrency - I had hoped to use the dual processor cores of the Pico, 
 with one routine for Comms to the host and the other to drive the stepper but have had to interleave stepping with comms.  
 A suitable future update would be to try using the PIO to drive the stepper instead of a separate core.
+
+The physical parts could be improved too. The body is quite fiddly to assemble and prevents manual focusing, but as a first pass its
+working well.
