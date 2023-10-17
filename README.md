@@ -25,3 +25,8 @@ FocuserV5.scad        Design file for Focuser body (OpenSCAD)
 FocuserBox.scad       Design file for Box to hold electronics (OpenSCAD)
 F.* STL files for the focuser body
 </pre>
+
+<pre>
+Driver module from https://www.amazon.co.uk/dp/B0893DPSJL 
+Stepper motor from https://www.amazon.co.uk/dp/B08DCGHLYP. 
+</pre>
