@@ -19,9 +19,9 @@ A suitable future update would be to try using the PIO to drive the stepper inst
 
 The physical parts could be improved too. The body is quite fiddly to assemble and prevents manual focusing, but as a first pass its working well.
 
-'''
+```
 3d printing files :
 FocuserV5.scad        Design file for Focuser body (OpenSCAD)
 FocuserBox.scad       Design file for Box to hold electronics (OpenSCAD)
 F.* STL files for the focuser body
-'''
+```
