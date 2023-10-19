@@ -4,6 +4,11 @@ package main
 * Emulates the moonlite protocol for Auto-focusing telescopes on a Raspberry PICO using Tinygo.
 * My implementation uses a TMC2009 driver circuit to provide more power than direct connection
 * between Stepper and GPIO pins.
+*
+* Also, a couple of non-standard additions : DBnnnn to switch debugging on and off, plus
+* the full/half step option is hijacked to allow reversing the stepper past the place
+* where it finds itself at power-on.  This is used to fix the situation where I forget to
+* return the focus to zero before power-off (No non-volatile memory on Pico to store actual location).
 
 * Its not quite in the shape I envisaged.  It seemed ideal to devote one core to driving the stepper
 * and the other to comms with the server, but in tinygo scheduling is cooperative not pre-emptive and
@@ -37,7 +42,8 @@ var (
 	rx            = machine.UART_RX_PIN
 	tmcStep       = machine.GP16
 	tmcDirection  = machine.GP17
-	tmcEnable     = machine.GP18
+	// Setting this Low turns the stepper clockwise, High anti-clockwise
+	tmcEnable = machine.GP18
 
 	moving          bool
 	debugging       bool
@@ -47,6 +53,7 @@ var (
 	stepDelay       int16
 	maxSteps        int32         = 20
 	stepDuration    time.Duration = 2 * time.Millisecond
+	//countingActive  bool
 )
 
 // ======================
@@ -83,7 +90,6 @@ func main() {
 		if activeTarget { // activeTarget is turned on by :FG# command
 			if locationTarget != locationCurrent {
 				moving = true
-
 				doSomeStepping()
 			}
 		}
@@ -124,7 +130,7 @@ func doSomeStepping() {
 	}
 
 	distance = locationTarget - locationCurrent
-	debug(fmt.Sprintln("distance :", distance))
+	debug(fmt.Sprintln("Location ", locationCurrent, ", distance :", distance))
 
 	if distance == 0 {
 		debug("calling halt as distance = 0")
@@ -223,13 +229,11 @@ func boj() {
 * Ignored commands :
 * C -> No delay expected in fetching Temp, GT can do it
 * GT, SC, +, -, Y+, Y-, PO, ZX -> Temperature coefficient focusing not used
-* SH -> half stepping not done, because how would you count/record/inform half a step?
 * YM
 * SP, YT -> not allowing driver to set potentially wrong values
  */
 func actionCommand(command FocuserCommand) {
 
-	//command := <-cmdChannel
 	switch command.action {
 	case "DB": // >>>>>>>>>>>>>>>> non-standard!  May be removed
 		setDebug(command.value)
@@ -256,7 +260,9 @@ func actionCommand(command FocuserCommand) {
 	case "SD":
 		setStepDelay(command.value)
 	case "SF":
-		setFullStepMode()
+		hijackFullStepMode()
+	case "SH":
+		hijackHalfStepMode()
 	case "SN":
 		setNewTarget(command.value)
 	case "YB":
@@ -307,8 +313,27 @@ func setNewTarget(value int32) {
 }
 
 // ======================
-func setFullStepMode() {
-	// Thats all we do
+/*
+* Since the TMC2209 is already micro-stepping,
+* Full step and Half Step commands are re-purposed
+* to overcome lack of known start-point
+ */
+func hijackFullStepMode() {
+	// Restore normal direction
+	tmcDirection.Low()
+}
+
+// ======================
+/*
+* Reset the "zero" position.  Go backwards 1000 steps and
+* change location to zero
+* The User is expected to be monitoring progress carefully!
+ */
+func hijackHalfStepMode() {
+	locationCurrent = 1000
+	locationTarget = 0
+	tmcDirection.High()
+	goToTarget()
 }
 
 // =======================
