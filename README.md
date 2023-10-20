@@ -1,6 +1,8 @@
 # Moonlyte
 An electronic focuser for Skywatcher Skymax 180 telescopes, emulating the Moonlite protocol
 
+This project is licensed under the terms of the MIT license.
+
 Written in GO / Tinygo as I had not tried the language much.  Uses a Pico microcontroller instead of the traditional Arduino, 
 again because I had not used it and it was just collecting dust.  
 
