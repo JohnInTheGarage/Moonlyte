@@ -15,6 +15,8 @@ package main
 * only uses one core.
 * Therefore the stepping activity is broken down into small groups of steps mixed in with the serial comms
 * with the server, to allow it to apparently be happening at the same time.
+*
+* 2023-10-31 Added manual increase/decrease buttons.
  */
 
 // flashing : tinygo flash -target=pico main.go
@@ -41,9 +43,12 @@ var (
 	tx            = machine.UART_TX_PIN
 	rx            = machine.UART_RX_PIN
 	tmcStep       = machine.GP16
-	tmcDirection  = machine.GP17
 	// Setting this Low turns the stepper clockwise, High anti-clockwise
-	tmcEnable = machine.GP18
+	tmcDirection = machine.GP17
+	tmcEnable    = machine.GP18
+	//two optional switches for manual adjustments
+	swIncrease = machine.GP20
+	swDecrease = machine.GP19
 
 	moving          bool
 	debugging       bool
@@ -51,9 +56,13 @@ var (
 	locationTarget  int32
 	activeTarget    bool
 	stepDelay       int16
-	maxSteps        int32         = 20
-	stepDuration    time.Duration = 2 * time.Millisecond
-	//countingActive  bool
+)
+
+const (
+	maxSteps     int32         = 20
+	stepDuration time.Duration = 2 * time.Millisecond
+	locationMin  int32         = 0
+	locationMax  int32         = 10000
 )
 
 // ======================
@@ -87,7 +96,10 @@ func main() {
 
 		}
 
-		if activeTarget { // activeTarget is turned on by :FG# command
+		checkSwitches() // any manual input?
+
+		// activeTarget is turned on by :FG# command (or manual input)
+		if activeTarget {
 			if locationTarget != locationCurrent {
 				moving = true
 				doSomeStepping()
@@ -212,12 +224,18 @@ func ReadTemp() int32 {
 // =============================
 func boj() {
 
-	time.Sleep(10 * time.Second)
+	time.Sleep(1 * time.Second)
 	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 	tmcStep.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	tmcDirection.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	tmcEnable.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	tmcDirection.Low()
+	swIncrease.Configure(machine.PinConfig{
+		Mode: machine.PinInputPullup,
+	})
+	swDecrease.Configure(machine.PinConfig{
+		Mode: machine.PinInputPullup,
+	})
 	haltStepper()
 
 }
@@ -276,6 +294,40 @@ func actionCommand(command FocuserCommand) {
 	default:
 		{
 		}
+	}
+
+}
+
+/*
+ * Handle two optional switches to allow manual adjustment of
+ * focus increase or decrease.  Added so that I can focus when
+ * the non-astro camera is connected.  That requires me to watch
+ * the camera screen while at the scope instead of having the
+ * computer do it remotely.
+ * This also means we have to prevent going below zero, which
+ * the Indigo/Ascom/Indi software normally handles.
+ */
+func checkSwitches() {
+	if swIncrease.Get() == false {
+		locationTarget = locationCurrent + 5
+	}
+
+	if swDecrease.Get() == false {
+		locationTarget = locationCurrent - 5
+	}
+
+	// if both buttons are pressed - no movement
+	if locationTarget == locationCurrent {
+		return
+	}
+
+	time.Sleep(10 * time.Millisecond) // otherwise it operates very quickly
+	activeTarget = true
+	if locationTarget < locationMin {
+		locationTarget = locationMin
+	}
+	if locationTarget > locationMax {
+		locationTarget = locationMax
 	}
 
 }
