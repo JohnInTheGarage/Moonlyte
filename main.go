@@ -322,13 +322,13 @@ func checkSwitches() {
 	}
 
 	time.Sleep(10 * time.Millisecond) // otherwise it operates very quickly
-	activeTarget = true
 	if locationTarget < locationMin {
 		locationTarget = locationMin
 	}
 	if locationTarget > locationMax {
 		locationTarget = locationMax
 	}
+	goToTarget()
 
 }
 
