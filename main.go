@@ -17,6 +17,9 @@ package main
 * with the server, to allow it to apparently be happening at the same time.
 *
 * 2023-10-31 Added manual increase/decrease buttons.
+*
+* 2023-12-09 Reversed direction of motor for Version 2 hardware change - Motor inverted from V1
+*            to use belt drive instead of direct connection to the focuser shaft.
  */
 
 // flashing : tinygo flash -target=pico main.go
@@ -62,7 +65,7 @@ const (
 	maxSteps     int32         = 20
 	stepDuration time.Duration = 2 * time.Millisecond
 	locationMin  int32         = 0
-	locationMax  int32         = 10000
+	locationMax  int32         = 30000
 )
 
 // ======================
@@ -123,9 +126,9 @@ func doSomeStepping() {
 	if distance < 0 {
 		delta = -1
 		steps *= delta // to get a positive number
-		tmcDirection.High()
-	} else {
 		tmcDirection.Low()
+	} else {
+		tmcDirection.High()
 		delta = 1
 	}
 	if steps > maxSteps {
@@ -372,7 +375,7 @@ func setNewTarget(value int32) {
  */
 func hijackFullStepMode() {
 	// Restore normal direction
-	tmcDirection.Low()
+	tmcDirection.High()
 }
 
 // ======================
@@ -384,7 +387,7 @@ func hijackFullStepMode() {
 func hijackHalfStepMode() {
 	locationCurrent = 1000
 	locationTarget = 0
-	tmcDirection.High()
+	tmcDirection.Low()
 	goToTarget()
 }
 

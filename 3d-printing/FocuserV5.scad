@@ -8,7 +8,7 @@ Some are better printed upside-down.
 
 q=120;      // quality number for cylinders
 test=false; // alows looking inside
-xpl=0;      // "explodes" the assembly vertically if > zero
+xpl=50;      // "explodes" the assembly vertically if > zero
 
 //----------------------------
 module Generic_Ring(outer, inner, height){
@@ -301,6 +301,11 @@ module assembly(){
 
 assembly();
 
+//translate([-19,-20,175]){
+//    color("grey"){
+//        cube([38, 150,2]);
+//    }
+//}
 /* ------------ measurement objects ---------------
 color("red"){
     //distance from top of stepper adapter to baseplate
