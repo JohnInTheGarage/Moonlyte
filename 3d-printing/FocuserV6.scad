@@ -8,13 +8,48 @@ instead adding calls to the relevant parts, i.e. steppersuppport() or mainbodyto
 Some are better printed upside-down.
 */
 
-q=120;      // quality number for cylinders
+q=20;      // quality number for cylinders
 test=false; // alows looking inside
 xpl=0;      // "explodes" the assembly vertically if > zero
 
 
 // =========================================
+module beltcover(size){
+    linear_extrude(height = 25, center = true, convexity = 10, twist = 0, slices = 20, $fn =q) {
+        hull() {
+            translate([60,0,0]){ 
+                circle(20 * size);
+            }
+            circle(12 * size);
+        }
+    }
+}
 
+module cover(){
+    difference(){
+        beltcover(1.1);
+        translate([0,0,-1.5]){
+            beltcover(1);
+        }
+        translate([-15,0,-15]){
+            cube([120,30,50]);
+        }
+    }
+    translate([60,0,-36]){
+        difference(){
+            cylinder(d=40*1.1,h=25,$fn=q);
+            translate([0,0,-1]){
+                cylinder(d=40,h=35,$fn=q);
+            }
+            translate([-40,0,-3]){
+                cube(60,center=true);
+            }
+            
+        }
+        
+    }
+
+}
 
 module plate(){
     //----------------------
@@ -82,7 +117,7 @@ module flange(){
 //----------------------------
 module steppermotor(){
     color("silver"){
-        cylinder(h=16, d=5, $fn=q);
+        cylinder(h=23, d=5, $fn=q);
         cylinder(h=2, d=22, $fn=q);
     }
     color("black"){
@@ -115,9 +150,15 @@ module assembly(){
         pulley ( "GT2 2mm" , GT2_2mm_pulley_dia , 0.764 , 1.494 );
     }
     
-    //translate([-15,20,-25-xpl]){
-    //    cube(30);
-    //}
+    translate([0,0,38+xpl]){
+        rotate([0,0,90]){
+            cover();
+        }
+    }
+    
+//    translate([-15,20,24]){
+//        cube(23);
+//    }
 }
 
 assembly();
