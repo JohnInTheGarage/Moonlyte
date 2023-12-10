@@ -43,7 +43,7 @@ pulley_t_ht = 8;	// length of toothed part of pulley, standard = 12
 pulley_b_ht = 25;		// pulley base height, standard = 8. Set to same as idler_ht if you want an idler but no pulley.
 pulley_b_dia = 18;	// pulley base diameter, standard = 20
 
-no_of_nuts = 1;		// number of captive nuts required, standard = 1
+no_of_nuts = 0;		// number of captive nuts required, standard = 1
 nut_angle = 90;		// angle between nuts, standard = 90
 nut_shaft_distance = 1.5;	// distance between inner face of nut and shaft, can be negative.
 nut_elevation = pulley_b_ht/2;
@@ -82,7 +82,7 @@ GT2_3mm_pulley_dia = tooth_spacing (3,0.381);
 GT2_5mm_pulley_dia = tooth_spacing (5,0.5715);
 
 // The following calls the pulley creation part, and passes the pulley diameter and tooth width to that module
-
+/*  moved call of pulley module to FocuserV6.scad - JK
 if ( profile == 1 ) { pulley ( "MXL" , MXL_pulley_dia , 0.508 , 1.321 ); }
 if ( profile == 2 ) { pulley ( "40 D.P." , 40DP_pulley_dia , 0.457 , 1.226 ); }
 if ( profile == 3 ) { pulley ( "XL" , XL_pulley_dia , 1.27, 3.051 ); }
@@ -97,7 +97,7 @@ if ( profile == 11 ) { pulley ( "HTD 8mm" , HTD_8mm_pulley_dia , 3.607 , 6.603 )
 if ( profile == 12 ) { pulley ( "GT2 2mm" , GT2_2mm_pulley_dia , 0.764 , 1.494 ); }
 if ( profile == 13 ) { pulley ( "GT2 3mm" , GT2_3mm_pulley_dia , 1.169 , 2.31 ); }
 if ( profile == 14 ) { pulley ( "GT2 5mm" , GT2_5mm_pulley_dia , 1.969 , 3.952 ); }
-
+*/
 // Functions
 
 function tooth_spaceing_curvefit (b,c,d)
