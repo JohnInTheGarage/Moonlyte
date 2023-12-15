@@ -20,6 +20,9 @@ package main
 *
 * 2023-12-09 Reversed direction of motor for Version 2 hardware change - Motor inverted from V1
 *            to use belt drive instead of direct connection to the focuser shaft.
+*
+* 2023-12-15 Reduce "chugging" on manual inputs (caused by enabling and disabling the stepper
+*            for the short bursts used during manual-focus button-presses).
  */
 
 // flashing : tinygo flash -target=pico main.go
@@ -59,6 +62,8 @@ var (
 	locationTarget  int32
 	activeTarget    bool
 	stepDelay       int16
+	stepperEnabled  bool
+	stepperCooling  time.Time // A delay used after reaching the target location, but before disabling the stepper
 )
 
 const (
@@ -107,9 +112,14 @@ func main() {
 				moving = true
 				doSomeStepping()
 			}
+			if time.Now().After(stepperCooling) {
+				debug(fmt.Sprintln("Now ", time.Now().Nanosecond(), ", cooling :", stepperCooling.Nanosecond()))
+				haltStepper()
+				activeTarget = false
+			}
 		}
 
-	}
+	} // end of "for ever"
 
 }
 
@@ -143,15 +153,13 @@ func doSomeStepping() {
 		locationCurrent += delta
 		steps--
 	}
+	stepperCooling = time.Now().Add(time.Second * 3)
 
 	distance = locationTarget - locationCurrent
-	debug(fmt.Sprintln("Location ", locationCurrent, ", distance :", distance))
-
 	if distance == 0 {
-		debug("calling halt as distance = 0")
-		haltStepper()
+		moving = false
 	}
-
+	debug(fmt.Sprintln("Location ", locationCurrent, ", distance :", distance))
 }
 
 // ======================
@@ -259,7 +267,7 @@ func actionCommand(command FocuserCommand) {
 	case "DB": // >>>>>>>>>>>>>>>> non-standard!  May be removed
 		setDebug(command.value)
 	case "FQ":
-		haltStepper()
+		emergencyStop()
 	case "FG":
 		goToTarget()
 	case "GH":
@@ -311,6 +319,12 @@ func actionCommand(command FocuserCommand) {
  * the Indigo/Ascom/Indi software normally handles.
  */
 func checkSwitches() {
+
+	// if both buttons are pressed or not pressed - no movement
+	if swIncrease.Get() == swDecrease.Get() {
+		return
+	}
+
 	if swIncrease.Get() == false {
 		locationTarget = locationCurrent + 5
 	}
@@ -319,10 +333,7 @@ func checkSwitches() {
 		locationTarget = locationCurrent - 5
 	}
 
-	// if both buttons are pressed - no movement
-	if locationTarget == locationCurrent {
-		return
-	}
+	debug(fmt.Sprintln("checkswitches [", locationCurrent, "] to [", locationTarget, "]"))
 
 	time.Sleep(10 * time.Millisecond) // otherwise it operates very quickly
 	if locationTarget < locationMin {
@@ -331,6 +342,7 @@ func checkSwitches() {
 	if locationTarget > locationMax {
 		locationTarget = locationMax
 	}
+	debug("checkswitches calls gotoTarget")
 	goToTarget()
 
 }
@@ -451,22 +463,36 @@ func goToTarget() {
 	activeTarget = true
 	debug(fmt.Sprintln("Moving from [", locationCurrent, "] to [", locationTarget, "]"))
 	if locationCurrent != locationTarget {
-		enableStepper()
 		moving = true
+	}
+	if stepperEnabled == false {
+		debug(" tmcEnable is not enabled ")
+		enableStepper()
 	}
 }
 
-// ======================// ======================
-func haltStepper() {
+// ======================
+func emergencyStop() {
 	moving = false
+	activeTarget = false
+	locationTarget = locationCurrent
+	haltStepper()
+	debug("emergency stop")
+}
+
+// ======================
+func haltStepper() {
 	tmcEnable.High()
+	stepperEnabled = false
 	debug("Halted stepper")
 }
 
 // ======================
 func enableStepper() {
 	tmcEnable.Low()
+	stepperEnabled = true
 	debug("Stepper enabled")
+
 }
 
 // ======================

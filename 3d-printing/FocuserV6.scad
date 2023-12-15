@@ -8,49 +8,157 @@ instead adding calls to the relevant parts, i.e. steppersuppport() or mainbodyto
 Some are better printed upside-down.
 */
 
-q=20;      // quality number for cylinders
-test=false; // alows looking inside
+q=100;      // quality number for cylinders
+test=false; // allows looking inside
 xpl=0;      // "explodes" the assembly vertically if > zero
 
-
+coverBigRadius = 22.5;
+coverSmallRadius= 15;
+stepperSize = 41.5;
+printing = true;
 // =========================================
-module beltcover(size){
-    linear_extrude(height = 25, center = true, convexity = 10, twist = 0, slices = 20, $fn =q) {
-        hull() {
-            translate([60,0,0]){ 
-                circle(20 * size);
-            }
-            circle(12 * size);
+module boltBlock(holeSize){
+    difference(){
+        cube([10,10,3], center=true);
+        translate([0,0,-3]){
+            cylinder(h=5,d=holeSize, $fn=q);
         }
     }
 }
 
-module cover(){
-    difference(){
-        beltcover(1.1);
-        translate([0,0,-1.5]){
-            beltcover(1);
-        }
-        translate([-15,0,-15]){
-            cube([120,30,50]);
+// =========================================
+module beltcover(bigC, smallC){
+    translate([0,0,-11]){
+        linear_extrude(height = 25, center = false, convexity = 10, twist = 0, slices = 20, $fn =q) {
+            hull() {
+                translate([60,0,0]){ 
+                    circle(bigC);
+                }
+                circle(smallC);
+            }
         }
     }
-    translate([60,0,-36]){
+}
+
+// =========================================
+module steppermotor(){
+    color("silver"){
+        cylinder(h=23, d=5, $fn=q);
+        cylinder(h=2, d=22, $fn=q);
+    }
+
+    color("black"){
         difference(){
-            cylinder(d=40*1.1,h=25,$fn=q);
-            translate([0,0,-1]){
-                cylinder(d=40,h=35,$fn=q);
+            translate([0,0,-11.5]){
+                cube([stepperSize,stepperSize,23],center=true);
             }
-            translate([-40,0,-3]){
+            if (test){
+                translate([-20,-10,-30]){
+                   // cube([stepperSize,stepperSize,60]);
+                }
+            }                
+        }
+    }
+    
+}
+module cover_ellipseHoles(){
+    for(angle = [15 : 30 : 180]){
+        rotate([90,0,angle]){
+            scale([0.8,2,1]){
+                cylinder(h=60,d=10,$fn=q);
+            }
+        }
+    }
+}
+
+// =========================================
+module cover_CurveUnderPulleyEnd(radius){
+    translate([60,0,-35]){
+        difference(){
+            cylinder(r=radius,h=25,$fn=q);
+            translate([0,0,-1]){
+                cylinder(r=(radius - 1.5),h=35,$fn=q);
+            }
+            translate([-35,0,-3]){
                 cube(60,center=true);
+            }
+            translate([0,0,12]){
+                cover_ellipseHoles();
             }
             
         }
         
     }
+}
+
+// =========================================
+module cover_StepperFixing(){
+    
+    difference(){
+        cube([stepperSize +4.2, stepperSize +4.2, 8], center=true);
+        translate([0,0,-2]){
+            cube([stepperSize +0.2, stepperSize +0.2, 8], center=true);
+        }
+        translate([-13,-13,-5]){
+            cube([40, 26, 12], center=false);
+        }
+        
+//        if (test){
+//            translate([-10,-10,-20]){
+//                cube([stepperSize,stepperSize,30]);
+//            }
+//        }                
+
+    }
+    translate([0,-27,2.5]){
+        boltBlock(4.1);
+    }
+    translate([0,27,2.5]){
+        boltBlock(4.1);
+    }
 
 }
 
+
+// =========================================
+module cover(){
+    
+    difference(){
+        beltcover(coverBigRadius, coverSmallRadius);
+        translate([0,0,-1.5]){
+            beltcover(coverBigRadius-1.5, coverSmallRadius-1.5);
+        }
+        translate([60,0,2]){
+            cover_ellipseHoles();
+        }
+
+        if (test){
+            translate([-15,0,-15]){
+                cube([120,30,50]);
+            }
+        }
+    }
+
+    cover_CurveUnderPulleyEnd(coverBigRadius);
+    
+    //Bolt holes & their support
+    translate([0,0,-9.5]){
+        translate([0,-27,0]){
+            boltBlock(4.1);
+        }
+        translate([0,27,0]){
+            boltBlock(4.1);
+        }
+        difference(){
+            cube([10,50,3], center=true);
+            cube(26, center=true);
+        }
+    }
+    
+}
+
+
+// =========================================
 module plate(){
     //----------------------
     module stepperboltholes(){
@@ -114,25 +222,10 @@ module flange(){
     }
 }
 
-//----------------------------
-module steppermotor(){
-    color("silver"){
-        cylinder(h=23, d=5, $fn=q);
-        cylinder(h=2, d=22, $fn=q);
-    }
-    color("black"){
-        translate([0,0,-11.5]){
-            cube([41,41,23],center=true);
-        }
-    }
-    
-}
-
 //========================================
 //========================================
-
 module assembly(){
-
+if (!printing){
     translate([0,0,24+xpl*2]){
         steppermotor();         // For reference only, not printed
     }
@@ -144,52 +237,26 @@ module assembly(){
     translate([0,60,-5-xpl]){
         cylinder(d=13.3,h=25, $fn=q);   // For reference only, not printed
     }
-    
+}    
     translate([0,60,7-xpl]){
         // Calling external Pulley_composer.scad, tweaked from the thingyverse download
-        pulley ( "GT2 2mm" , GT2_2mm_pulley_dia , 0.764 , 1.494 );
+        //pulley ( "GT2 2mm" , GT2_2mm_pulley_dia , 0.764 , 1.494 );
     }
     
-    translate([0,0,38+xpl]){
-        rotate([0,0,90]){
-            cover();
+    rotate([0,0,90]){
+        translate([0,0,37+xpl]){
+        rotate([0,0,0]){
+//            cover();
+        }
+    
+    
+        translate([0,0,-15]){
+            cover_StepperFixing();
         }
     }
+}
+   
     
-//    translate([-15,20,24]){
-//        cube(23);
-//    }
 }
 
 assembly();
-
-//translate([-19,-20,175]){
-//    color("grey"){
-//        cube([38, 150,2]);
-//    }
-//}
-/* ------------ measurement objects ---------------
-color("red"){
-    //distance from top of stepper adapter to baseplate
-    translate([10,0,0]){
-        cube([2,2,70]);
-    }
-    //bolt length for attaching to scope
-    translate([-10,-15,-10]){
-        cube ([2,2,25]);
-    }
-    //bolt length for attaching to stepper
-    translate([15,25,59]){
-        cube ([2,2,25]);
-    }
-    translate([1,-15,10]){
-        cube ([1,1,50]);
-    }
-}
-//corner bolt
-translate([-30,-30,6]){
-    color("silver"){
-        cylinder(h=50, d=4, $fn=q);
-    }
-}
-*/
