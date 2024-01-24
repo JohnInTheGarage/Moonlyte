@@ -27,6 +27,8 @@ The physical parts could be improved too. The body is quite fiddly to assemble a
 2023-12-15 Version 2 hardware & slight update for software (mainly prevent "chugging" where the manual input causes the Stepper to be enabled and disabled rapidly)
 V2 came about to make room for an Off-Axis Guider.
 
+2024-01-24 Added Intervalometer and bigger box to hold the manual focus and Intervalometer on-off switches
+
 <pre>
 3d printing files Version 1 hardware:
 FocuserV5.scad        Design file for Focuser body (OpenSCAD)
