@@ -23,6 +23,12 @@ package main
 *
 * 2023-12-15 Reduce "chugging" on manual inputs (caused by enabling and disabling the stepper
 *            for the short bursts used during manual-focus button-presses).
+*
+* 2024-01-20 Add a switch for activating an Intervalometer.  My Canon EOS-M camera lacks that feature,
+*            and my commercial Intervalometer only goes to 40 (secs or mins) and when it does e.g.
+*            30 seconds, its on for 30 and then off for 30.  I need on for 30 then off for a few
+* 		     seconds so the camera can start another exposure without pointless waiting.
+* 			 If you want to exclude this feature, remove lines that include "imaging"
  */
 
 // flashing : tinygo flash -target=pico main.go
@@ -55,6 +61,9 @@ var (
 	//two optional switches for manual adjustments
 	swIncrease = machine.GP20
 	swDecrease = machine.GP19
+	// Intervalometer
+	swImaging  = machine.GP10
+	imagingLED = machine.GP11
 
 	moving          bool
 	debugging       bool
@@ -64,6 +73,10 @@ var (
 	stepDelay       int16
 	stepperEnabled  bool
 	stepperCooling  time.Time // A delay used after reaching the target location, but before disabling the stepper
+	imagingEnabled  bool
+	imagingActive   bool
+	imagingClose    time.Time // Close the shutter when this time is reached.
+	imagingOpen     time.Time // Open the shutter when this time is reached.
 )
 
 const (
@@ -71,6 +84,11 @@ const (
 	stepDuration time.Duration = 2 * time.Millisecond
 	locationMin  int32         = 0
 	locationMax  int32         = 30000
+	// Switches are on when the pin's .Get() method returns false
+	sw_on           bool          = false
+	imagingSeconds  time.Duration = 60 * time.Second // exposure time
+	imagingPause    time.Duration = 8 * time.Second  // Allow time to save RAW image
+	imagingLEDPulse time.Duration = 11 * time.Microsecond
 )
 
 // ======================
@@ -101,10 +119,15 @@ func main() {
 					continue
 				}
 			}
-
 		}
 
 		checkSwitches() // any manual input?
+
+		// If you turn on imaging while the server is adjusting focus, expect disappointment!
+		if imagingEnabled || imagingActive {
+			// Imaging could be switched off while shutter is open
+			handleImaging()
+		}
 
 		// activeTarget is turned on by :FG# command (or manual input)
 		if activeTarget {
@@ -232,23 +255,67 @@ func ReadTemp() int32 {
 	return temp
 }
 
+/*
+* set shutter Open time to 5 seconds after shutter Close time, to allow camera to
+* save the RAW image - which takes a short while.
+ */
+func handleImaging() {
+	if time.Now().After(imagingOpen) {
+		debug("imaging:Open shutter")
+		fireImagingShutterLED()
+		imagingClose = time.Now().Add(imagingSeconds)
+		imagingOpen = imagingClose.Add(imagingPause)
+		imagingActive = true
+	}
+
+	if time.Now().After(imagingClose) {
+		if imagingActive {
+			debug("imaging:Close shutter")
+			fireImagingShutterLED()
+		}
+		imagingActive = false
+	}
+}
+
+// =============================
+/*
+* Idea lifted from https://github.com/MATT-ER-HORN/multiCameraIrControl
+* (Canon cameras only, others are available)
+* original work (apparently) by Sebastien Setz which seems to be unavailable now
+ */
+func fireImagingShutterLED() {
+	for i := 0; i < 16; i++ {
+		imagingLED.High()
+		time.Sleep(imagingLEDPulse)
+		imagingLED.Low()
+		time.Sleep(imagingLEDPulse)
+	}
+
+	time.Sleep(7330 * time.Microsecond)
+
+	for i := 0; i < 16; i++ {
+		imagingLED.High()
+		time.Sleep(imagingLEDPulse)
+		imagingLED.Low()
+		time.Sleep(imagingLEDPulse)
+	}
+}
+
 // =============================
 func boj() {
-
-	time.Sleep(1 * time.Second)
+	time.Sleep(5 * time.Second)
 	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 	tmcStep.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	tmcDirection.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	tmcEnable.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	tmcDirection.Low()
-	swIncrease.Configure(machine.PinConfig{
-		Mode: machine.PinInputPullup,
-	})
-	swDecrease.Configure(machine.PinConfig{
-		Mode: machine.PinInputPullup,
-	})
+	swIncrease.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	swDecrease.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	swImaging.Configure(machine.PinConfig{Mode: machine.PinInputPullup})
+	imagingLED.Configure(machine.PinConfig{Mode: machine.PinOutput})
+	imagingOpen = time.Now()
+	imagingClose = imagingOpen
 	haltStepper()
-
 }
 
 //================================================
@@ -310,26 +377,33 @@ func actionCommand(command FocuserCommand) {
 }
 
 /*
- * Handle two optional switches to allow manual adjustment of
- * focus increase or decrease.  Added so that I can focus when
- * the non-astro camera is connected.  That requires me to watch
- * the camera screen while at the scope instead of having the
- * computer do it remotely.
- * This also means we have to prevent going below zero, which
+ * Handle three optional switches; 2 to allow manual adjustment of
+ * focus increase or decrease, and 1 to activate the Intervalometer.
+ * Added so that I can use my old mirrorless non-astro camera.
+ * That requires me to watch the camera screen while at the scope
+ * instead of having the computer do it remotely.
+ * === Intervalometer and manual focus are mutually exclusive. ===
+ * This also means we have to prevent focus going below zero, which
  * the Indigo/Ascom/Indi software normally handles.
  */
 func checkSwitches() {
+
+	if swImaging.Get() == sw_on {
+		imagingEnabled = true
+		return
+	}
+	imagingEnabled = false
 
 	// if both buttons are pressed or not pressed - no movement
 	if swIncrease.Get() == swDecrease.Get() {
 		return
 	}
 
-	if swIncrease.Get() == false {
+	if swIncrease.Get() == sw_on {
 		locationTarget = locationCurrent + 5
 	}
 
-	if swDecrease.Get() == false {
+	if swDecrease.Get() == sw_on {
 		locationTarget = locationCurrent - 5
 	}
 

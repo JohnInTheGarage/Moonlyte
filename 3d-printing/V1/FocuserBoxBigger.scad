@@ -36,12 +36,12 @@ module fixings(){
     }
     
     // holes for manual focus buttons
-    translate([40,85,15]){
+    translate([40,95,15]){
         rotate([90,0,0]){
             Hole(6.6);
         }
     }
-    translate([60,85,15]){
+    translate([60,95,15]){
         rotate([90,0,0]){
             Hole(6.6);
         }
@@ -61,7 +61,7 @@ module fixings(){
 module Lid(){
 
     difference(){
-        cube([81,80,3]);
+        cube([81,90,3]);
         // hole for heatsink
         translate([61,25,-1]){
             cube([14,15,6]);
@@ -76,13 +76,13 @@ module Lid(){
     translate([3,3,-4]){
         cube([5,5,5]);
     }
-    translate([3,72,-4]){
+    translate([3,82,-4]){
         cube([5,5,5]);
     }
     translate([73,3,-4]){
         cube([5,5,5]);
     }
-    translate([73,72,-4]){
+    translate([73,82,-4]){
         cube([5,5,5]);
     }
 
@@ -92,10 +92,10 @@ module Lid(){
 //=======================
 module Base(){
     difference(){
-        cube([81,80,30]);
+        cube([81,90,30]);
         translate([3,3,3]){
             // original cube([75,50,40]);
-            cube([75,74,40]);
+            cube([75,84,40]);
         }
     }
     //divider blocks same width as original box
@@ -139,9 +139,9 @@ translate([0,0,33]){
 
 
 // ---------- Base part ----------
-
+/*
 difference(){
     Base();
     fixings();
 }
-
+*/
