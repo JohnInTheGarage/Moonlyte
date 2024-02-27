@@ -64,6 +64,7 @@ var (
 	// Intervalometer
 	swImaging  = machine.GP10
 	imagingLED = machine.GP11
+	echoLed = machine.LED
 
 	moving          bool
 	debugging       bool
@@ -263,6 +264,7 @@ func handleImaging() {
 	if time.Now().After(imagingOpen) {
 		debug("imaging:Open shutter")
 		fireImagingShutterLED()
+		echoLed.High()
 		imagingClose = time.Now().Add(imagingSeconds)
 		imagingOpen = imagingClose.Add(imagingPause)
 		imagingActive = true
@@ -272,6 +274,7 @@ func handleImaging() {
 		if imagingActive {
 			debug("imaging:Close shutter")
 			fireImagingShutterLED()
+			echoLed.Low()
 		}
 		imagingActive = false
 	}
@@ -303,7 +306,7 @@ func fireImagingShutterLED() {
 
 // =============================
 func boj() {
-	time.Sleep(5 * time.Second)
+	//time.Sleep(5 * time.Second)
 	uart.Configure(machine.UARTConfig{TX: tx, RX: rx})
 	tmcStep.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	tmcDirection.Configure(machine.PinConfig{Mode: machine.PinOutput})
@@ -315,6 +318,7 @@ func boj() {
 	imagingLED.Configure(machine.PinConfig{Mode: machine.PinOutput})
 	imagingOpen = time.Now()
 	imagingClose = imagingOpen
+	echoLed.Configure(machine.PinConfig{Mode:machine.PinOutput})
 	haltStepper()
 }
 
